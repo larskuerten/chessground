@@ -9,30 +9,30 @@ const letters = { pawn: 'p', rook: 'r', knight: 'n', bishop: 'b', queen: 'q', ki
 
 export function read(fen: cg.FEN): cg.Pieces {
   if (fen === 'start') fen = initial;
-  const pieces: cg.Pieces = {};
-  let row = 8, col = 0;
+  const pieces: cg.Pieces = new Map();
+  let row = 7, col = 0;
   for (const c of fen) {
     switch (c) {
       case ' ': return pieces;
       case '/':
         --row;
-        if (row === 0) return pieces;
+        if (row < 0) return pieces;
         col = 0;
         break;
       case '~':
-        const piece = pieces[pos2key([col, row])];
+        const piece = pieces.get(pos2key([col, row]));
         if (piece) piece.promoted = true;
         break;
       default:
         const nb = c.charCodeAt(0);
         if (nb < 57) col += nb - 48;
         else {
-          ++col;
           const role = c.toLowerCase();
-          pieces[pos2key([col, row])] = {
+          pieces.set(pos2key([col, row]), {
             role: roles[role],
-            color: (c === role ? 'black' : 'white') as cg.Color
-          };
+            color: c === role ? 'black' : 'white',
+          });
+          ++col;
         }
     }
   }
@@ -40,8 +40,8 @@ export function read(fen: cg.FEN): cg.Pieces {
 }
 
 export function write(pieces: cg.Pieces): cg.FEN {
-  return invRanks.map(y => cg.ranks.map(x => {
-      const piece = pieces[pos2key([x, y])];
+  return invRanks.map(y => cg.files.map(x => {
+      const piece = pieces.get(x + y as cg.Key);
       if (piece) {
         const letter = letters[piece.role];
         return piece.color === 'white' ? letter.toUpperCase() : letter;

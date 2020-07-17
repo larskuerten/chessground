@@ -8,15 +8,20 @@ import * as cg from './types'
 type MouchBind = (e: cg.MouchEvent) => void;
 type StateMouchBind = (d: State, e: cg.MouchEvent) => void;
 
-export function bindBoard(s: State): void {
+export function bindBoard(s: State, boundsUpdated: () => void): void {
+
+  const boardEl = s.dom.elements.board;
+
+  if (!s.dom.relative && s.resizable && 'ResizeObserver' in window) {
+    const observer = new (window as any)['ResizeObserver'](boundsUpdated);
+    observer.observe(boardEl);
+  }
 
   if (s.viewOnly) return;
 
-  const boardEl = s.dom.elements.board,
-  onStart = startDragOrDraw(s);
-
   // Cannot be passive, because we prevent touch scrolling and dragging of
   // selected elements.
+  const onStart = startDragOrDraw(s);
   boardEl.addEventListener('touchstart', onStart as EventListener, { passive: false });
   boardEl.addEventListener('mousedown', onStart as EventListener, { passive: false });
 
@@ -26,25 +31,23 @@ export function bindBoard(s: State): void {
 }
 
 // returns the unbind function
-export function bindDocument(s: State, redrawAll: cg.Redraw): cg.Unbind {
+export function bindDocument(s: State, boundsUpdated: () => void): cg.Unbind {
 
   const unbinds: cg.Unbind[] = [];
 
-  if (!s.dom.relative && s.resizable) {
-    const onResize = () => {
-      s.dom.bounds.clear();
-      requestAnimationFrame(redrawAll);
-    };
-    unbinds.push(unbindable(document.body, 'chessground.resize', onResize));
+  // Old versions of Edge and Safari do not support ResizeObserver. Send
+  // chessground.resize if a user action has changed the bounds of the board.
+  if (!s.dom.relative && s.resizable && !('ResizeObserver' in window)) {
+    unbinds.push(unbindable(document.body, 'chessground.resize', boundsUpdated));
   }
 
   if (!s.viewOnly) {
 
-    const onmove: MouchBind = dragOrDraw(s, drag.move, draw.move);
-    const onend: MouchBind = dragOrDraw(s, drag.end, draw.end);
+    const onmove = dragOrDraw(s, drag.move, draw.move);
+    const onend = dragOrDraw(s, drag.end, draw.end);
 
-    for (const ev of ['touchmove', 'mousemove']) unbinds.push(unbindable(document, ev, onmove));
-    for (const ev of ['touchend', 'mouseup']) unbinds.push(unbindable(document, ev, onend));
+    for (const ev of ['touchmove', 'mousemove']) unbinds.push(unbindable(document, ev, onmove as EventListener));
+    for (const ev of ['touchend', 'mouseup']) unbinds.push(unbindable(document, ev, onend as EventListener));
 
     const onScroll = () => s.dom.bounds.clear();
     unbinds.push(unbindable(document, 'scroll', onScroll, { capture: true, passive: true }));
@@ -54,9 +57,9 @@ export function bindDocument(s: State, redrawAll: cg.Redraw): cg.Unbind {
   return () => unbinds.forEach(f => f());
 }
 
-function unbindable(el: EventTarget, eventName: string, callback: MouchBind, options?: any): cg.Unbind {
-  el.addEventListener(eventName, callback as EventListener, options);
-  return () => el.removeEventListener(eventName, callback as EventListener, options);
+function unbindable(el: EventTarget, eventName: string, callback: EventListener, options?: AddEventListenerOptions): cg.Unbind {
+  el.addEventListener(eventName, callback, options);
+  return () => el.removeEventListener(eventName, callback, options);
 }
 
 function startDragOrDraw(s: State): MouchBind {
@@ -73,7 +76,7 @@ function startDragOrDraw(s: State): MouchBind {
 
 function dragOrDraw(s: State, withDrag: StateMouchBind, withDraw: StateMouchBind): MouchBind {
   return e => {
-    if (e.shiftKey || isRightButton(e)) { if (s.drawable.enabled) withDraw(s, e); }
+    if (s.drawable.current) { if (s.drawable.enabled) withDraw(s, e); }
     else if (!s.viewOnly) withDrag(s, e);
   };
 }

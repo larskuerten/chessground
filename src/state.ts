@@ -5,7 +5,7 @@ import { Drawable } from './draw'
 import { timer } from './util'
 import * as cg from './types';
 
-export interface State {
+export interface HeadlessState {
   pieces: cg.Pieces;
   orientation: cg.Color; // board orientation. white | black
   turnColor: cg.Color; // turn to play. white | black
@@ -65,7 +65,6 @@ export interface State {
     enabled: boolean; // allow moves & premoves to use drag'n drop
     distance: number; // minimum distance to initiate a drag; in pixels
     autoDistance: boolean; // lets chessground set distance to zero when user drags pieces
-    centerPiece: boolean; // center the piece on cursor at drag start
     showGhost: boolean; // show ghost of piece being dragged
     deleteOnDropOff: boolean; // delete a piece when it is dropped off the board
     current?: DragCurrent;
@@ -95,11 +94,14 @@ export interface State {
   };
   drawable: Drawable;
   exploding?: cg.Exploding;
-  dom: cg.Dom;
   hold: cg.Timer;
 }
 
-export function defaults(): Partial<State> {
+export interface State extends HeadlessState {
+  dom: cg.Dom;
+}
+
+export function defaults(): HeadlessState {
   return {
     pieces: fen.read(fen.initial),
     orientation: 'white',
@@ -140,7 +142,6 @@ export function defaults(): Partial<State> {
       enabled: true,
       distance: 3,
       autoDistance: true,
-      centerPiece: true,
       showGhost: true,
       deleteOnDropOff: false
     },
@@ -159,6 +160,7 @@ export function defaults(): Partial<State> {
     drawable: {
       enabled: true, // can draw
       visible: true, // can view
+      defaultSnapToValidMove: true,
       eraseOnClick: true,
       shapes: [],
       autoShapes: [],

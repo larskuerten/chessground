@@ -1,10 +1,10 @@
-import { State } from './state'
-import { colors, setVisible, createEl } from './util'
-import { files, ranks } from './types'
+import { HeadlessState } from './state'
+import { setVisible, createEl } from './util'
+import { colors, files, ranks } from './types'
 import { createElement as createSVG } from './svg'
 import { Elements } from './types'
 
-export default function wrap(element: HTMLElement, s: State, relative: boolean): Elements {
+export function renderWrap(element: HTMLElement, s: HeadlessState, relative: boolean): Elements {
 
   // .cg-wrap (element passed to Chessground)
   //   cg-helper (12.5%)
@@ -43,7 +43,7 @@ export default function wrap(element: HTMLElement, s: State, relative: boolean):
 
   if (s.coordinates) {
     const orientClass = s.orientation === 'black' ? ' black' : '';
-    container.appendChild(renderCoords(ranks.map(r => r.toString()), 'ranks' + orientClass));
+    container.appendChild(renderCoords(ranks, 'ranks' + orientClass));
     container.appendChild(renderCoords(files, 'files' + orientClass));
   }
 
@@ -62,7 +62,7 @@ export default function wrap(element: HTMLElement, s: State, relative: boolean):
   };
 }
 
-function renderCoords(elems: string[], className: string): HTMLElement {
+function renderCoords(elems: readonly string[], className: string): HTMLElement {
   const el = createEl('coords', className);
   let f: HTMLElement;
   for (const elem of elems) {
